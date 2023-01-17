@@ -1,3 +1,3 @@
-# ts-react-redux-mui-sb-vite-template
+# arcgis-mui-datagrid
 
-A project template for a TypeScript React, Zustand, React Query, MUI, and Vite project.
+A simple POC to demonstrate how to use the MUI DataGrid as a replacement of FeatureTable in ArcGIS JS Map SDK.
