@@ -1,20 +1,21 @@
-import { Button, Typography } from "@mui/material";
+import { useEffect, useRef } from "react";
 import "./App.css";
-import { useCount } from "./store/countStore";
+import { featureLayer, view } from "./arcgis";
+import FeatureTable from "./FeatureTable";
 
 function App() {
-  const { count, setCount } = useCount();
+  const mapRef = useRef<HTMLDivElement>(null);
 
-  function handleClick() {
-    setCount(count + 1);
-  }
+  useEffect(() => {
+    view.container = mapRef.current!;
+  }, []);
 
   return (
     <div className="App">
-      <Typography>Hello World</Typography>
-      <Button onClick={handleClick} variant="contained">
-        {count}
-      </Button>
+      <div className="map" ref={mapRef}></div>
+      <div className="table">
+        <FeatureTable featureLayer={featureLayer} />
+      </div>
     </div>
   );
 }
