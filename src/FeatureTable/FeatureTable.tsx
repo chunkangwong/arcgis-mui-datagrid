@@ -1,13 +1,19 @@
-import { DataGrid, GridEventListener } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  DataGridProps,
+  GridColumns,
+  GridEventListener,
+} from "@mui/x-data-grid";
 import { useEffect, useReducer } from "react";
 import reducer from "./featureTableReducer";
 
-interface FeatureTableProps {
+interface FeatureTableProps extends Omit<DataGridProps, "rows" | "columns"> {
   view: __esri.MapView;
   featureLayer: __esri.FeatureLayer;
   filterGeometry?: __esri.Geometry;
   highlightOnRowSelectEnabled?: boolean;
   onRowClick?: GridEventListener<"rowClick">;
+  columns?: GridColumns;
 }
 
 const FeatureTable = ({
@@ -16,6 +22,8 @@ const FeatureTable = ({
   filterGeometry,
   highlightOnRowSelectEnabled = true,
   onRowClick,
+  columns,
+  ...props
 }: FeatureTableProps) => {
   const [{ isLoading, error, data }, dispatch] = useReducer(reducer, {
     isLoading: false,
@@ -87,9 +95,10 @@ const FeatureTable = ({
   if (data) {
     return (
       <DataGrid
-        columns={data.columns}
+        columns={columns || data.columns}
         rows={data.rows}
         onRowClick={handleRowClick}
+        {...props}
       />
     );
   }
