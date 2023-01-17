@@ -1,13 +1,22 @@
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, GridEventListener } from "@mui/x-data-grid";
 import { useEffect, useReducer } from "react";
 import reducer from "./featureTableReducer";
 
 interface FeatureTableProps {
+  view: __esri.MapView;
   featureLayer: __esri.FeatureLayer;
   filterGeometry?: __esri.Geometry;
+  highlightOnRowSelectEnabled?: boolean;
+  onRowClick?: GridEventListener<"rowClick">;
 }
 
-const FeatureTable = ({ featureLayer, filterGeometry }: FeatureTableProps) => {
+const FeatureTable = ({
+  view,
+  featureLayer,
+  filterGeometry,
+  highlightOnRowSelectEnabled = true,
+  onRowClick,
+}: FeatureTableProps) => {
   const [{ isLoading, error, data }, dispatch] = useReducer(reducer, {
     isLoading: false,
     error: null,
@@ -50,6 +59,23 @@ const FeatureTable = ({ featureLayer, filterGeometry }: FeatureTableProps) => {
       });
   }, [featureLayer, filterGeometry]);
 
+  const handleRowClick: GridEventListener<"rowClick"> = (
+    params,
+    event,
+    detail
+  ) => {
+    if (onRowClick) {
+      onRowClick(params, event, detail);
+    }
+    if (highlightOnRowSelectEnabled) {
+      const objectId = params.row.id;
+      view.whenLayerView(featureLayer).then((layerView) => {
+        (layerView as any)._highlightIds.clear();
+        layerView.highlight(objectId);
+      });
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -59,7 +85,13 @@ const FeatureTable = ({ featureLayer, filterGeometry }: FeatureTableProps) => {
   }
 
   if (data) {
-    return <DataGrid columns={data.columns} rows={data.rows} />;
+    return (
+      <DataGrid
+        columns={data.columns}
+        rows={data.rows}
+        onRowClick={handleRowClick}
+      />
+    );
   }
 
   return null;

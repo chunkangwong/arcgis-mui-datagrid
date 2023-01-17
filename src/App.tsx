@@ -14,7 +14,7 @@ function App() {
     <div className="App">
       <div className="map" ref={mapRef}></div>
       <div className="table">
-        <FeatureTable featureLayer={featureLayer} />
+        <FeatureTable view={view} featureLayer={featureLayer} />
       </div>
     </div>
   );
