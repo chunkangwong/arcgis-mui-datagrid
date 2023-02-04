@@ -1,10 +1,17 @@
 import Graphic from "@arcgis/core/Graphic";
-import { useEffect, useRef } from "react";
+import Alert, { AlertColor } from "@mui/material/Alert";
+import Snackbar from "@mui/material/Snackbar";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { featureLayer, view } from "./arcgis";
 import FeatureTable from "./FeatureTable";
 
 function App() {
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarContent, setSnackbarContent] = useState({
+    message: "",
+    severity: "error" as AlertColor,
+  });
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,16 +35,38 @@ function App() {
     if (results.updateFeatureResults.some((res) => res.error)) {
       const firstError = results.updateFeatureResults.find((res) => res.error)
         ?.error!;
-      window.alert(
-        `Error updating feature: ${firstError.name}: ${firstError.message}`
-      );
+      setSnackbarContent({
+        message: `Error updating feature: ${firstError.name}: ${firstError.message}`,
+        severity: "error",
+      });
+      setSnackbarOpen(true);
       return oldRow;
     }
+    setSnackbarContent({
+      message: `Update successful`,
+      severity: "success",
+    });
+    setSnackbarOpen(true);
     return newRow;
   };
 
   const handleRowProcessError = (error: any) => {
-    window.alert(`Error updating feature: ${error.message}`);
+    setSnackbarContent({
+      message: `Error updating feature: ${error.message}`,
+      severity: "error",
+    });
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = (
+    event: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setSnackbarOpen(false);
   };
 
   return (
@@ -65,6 +94,15 @@ function App() {
           onProcessRowUpdateError={handleRowProcessError}
         />
       </div>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert severity={snackbarContent.severity}>
+          {snackbarContent.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
