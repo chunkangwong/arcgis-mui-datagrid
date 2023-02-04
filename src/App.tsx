@@ -1,10 +1,12 @@
 import Graphic from "@arcgis/core/Graphic";
 import Alert, { AlertColor } from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
 import Snackbar from "@mui/material/Snackbar";
+import { DataGrid, GridEventListener } from "@mui/x-data-grid";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { featureLayer, view } from "./arcgis";
-import FeatureTable from "./FeatureTable";
 
 function App() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -13,6 +15,20 @@ function App() {
     severity: "error" as AlertColor,
   });
   const mapRef = useRef<HTMLDivElement>(null);
+  const {
+    data: rows,
+    isLoading,
+    error,
+  } = useQuery(["rows"], async () => {
+    const query = featureLayer.createQuery();
+    query.outFields = ["*"];
+    query.where = "1=1";
+    const featureSet = await featureLayer.queryFeatures(query);
+    return featureSet.features.map((feature) => ({
+      id: feature.attributes[featureLayer.objectIdField],
+      ...feature.attributes,
+    }));
+  });
 
   useEffect(() => {
     view.container = mapRef.current!;
@@ -69,30 +85,40 @@ function App() {
     setSnackbarOpen(false);
   };
 
+  const handleRowClick: GridEventListener<"rowClick"> = async (params) => {
+    const objectId = params.row.id;
+    const layerView = await view.whenLayerView(featureLayer);
+    (layerView as any)._highlightIds.clear();
+    layerView.highlight(objectId);
+  };
+
   return (
     <div className="App">
       <div className="map" ref={mapRef}></div>
       <div className="table">
-        <FeatureTable
-          view={view}
-          featureLayer={featureLayer}
-          experimentalFeatures={{
-            newEditingApi: true,
-          }}
-          editMode="row"
-          columns={[
-            {
-              field: "ObjectId",
-            },
-            {
-              field: "Case_Number",
-              editable: true,
-              width: 150,
-            },
-          ]}
-          processRowUpdate={handleProcessRowUpdate}
-          onProcessRowUpdateError={handleRowProcessError}
-        />
+        {isLoading && <CircularProgress />}
+        {rows && (
+          <DataGrid
+            rows={rows}
+            onRowClick={handleRowClick}
+            experimentalFeatures={{
+              newEditingApi: true,
+            }}
+            editMode="row"
+            columns={[
+              {
+                field: "ObjectId",
+              },
+              {
+                field: "Case_Number",
+                editable: true,
+                width: 150,
+              },
+            ]}
+            processRowUpdate={handleProcessRowUpdate}
+            onProcessRowUpdateError={handleRowProcessError}
+          />
+        )}
       </div>
       <Snackbar
         open={snackbarOpen}
