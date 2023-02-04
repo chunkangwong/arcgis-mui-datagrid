@@ -1,5 +1,7 @@
 import Graphic from "@arcgis/core/Graphic";
 import Alert, { AlertColor } from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import LoadingButton from "@mui/lab/LoadingButton";
 import CircularProgress from "@mui/material/CircularProgress";
 import Snackbar from "@mui/material/Snackbar";
 import { DataGrid, GridEventListener } from "@mui/x-data-grid";
@@ -8,12 +10,17 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { featureLayer, view } from "./arcgis";
 
+type EditedRow = {
+  [objectId: number]: __esri.Graphic;
+};
+
 function App() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarContent, setSnackbarContent] = useState({
     message: "",
     severity: "error" as AlertColor,
   });
+  const [editedRows, setEditedRows] = useState<EditedRow>();
   const mapRef = useRef<HTMLDivElement>(null);
   const {
     data: rows,
@@ -29,6 +36,37 @@ function App() {
       ...feature.attributes,
     }));
   });
+  const {
+    isLoading: isEditing,
+    error: editingError,
+    refetch: edit,
+  } = useQuery(
+    ["editing"],
+    async () => {
+      const results = await featureLayer.applyEdits({
+        updateFeatures: Object.values(editedRows!),
+      });
+      if (results.updateFeatureResults.some((res) => res.error)) {
+        const firstError = results.updateFeatureResults.find((res) => res.error)
+          ?.error!;
+        setSnackbarContent({
+          message: `Error updating feature: ${firstError.name}: ${firstError.message}`,
+          severity: "error",
+        });
+        setSnackbarOpen(true);
+        return false;
+      }
+      setSnackbarContent({
+        message: "Successfully updated features",
+        severity: "success",
+      });
+      setSnackbarOpen(true);
+      return true;
+    },
+    {
+      enabled: false,
+    }
+  );
 
   useEffect(() => {
     view.container = mapRef.current!;
@@ -38,31 +76,18 @@ function App() {
     const updatedAttribute = Object.keys(newRow).find(
       (key) => newRow[key] !== oldRow[key]
     )!;
-    const results = await featureLayer.applyEdits({
-      updateFeatures: [
-        new Graphic({
-          attributes: {
-            [featureLayer.objectIdField]: newRow[featureLayer.objectIdField],
-            [updatedAttribute]: newRow[updatedAttribute],
-          },
-        }),
-      ],
+    const objectIdField = featureLayer.objectIdField;
+    const objectId = newRow[objectIdField];
+    const updatedGraphic = new Graphic({
+      attributes: {
+        [objectIdField]: objectId,
+        [updatedAttribute]: newRow[updatedAttribute],
+      },
     });
-    if (results.updateFeatureResults.some((res) => res.error)) {
-      const firstError = results.updateFeatureResults.find((res) => res.error)
-        ?.error!;
-      setSnackbarContent({
-        message: `Error updating feature: ${firstError.name}: ${firstError.message}`,
-        severity: "error",
-      });
-      setSnackbarOpen(true);
-      return oldRow;
-    }
-    setSnackbarContent({
-      message: `Update successful`,
-      severity: "success",
+    setEditedRows({
+      ...editedRows,
+      [objectId]: updatedGraphic,
     });
-    setSnackbarOpen(true);
     return newRow;
   };
 
@@ -92,9 +117,22 @@ function App() {
     layerView.highlight(objectId);
   };
 
+  const handleConfirmClick = async () => {
+    edit();
+  };
+
   return (
     <div className="App">
       <div className="map" ref={mapRef}></div>
+      <LoadingButton
+        onClick={handleConfirmClick}
+        disabled={!editedRows || Object.keys(editedRows).length === 0}
+        variant="contained"
+        // loading={isEditing}
+        color={Boolean(editingError) ? "error" : "primary"}
+      >
+        Confirm
+      </LoadingButton>
       <div className="table">
         {isLoading && <CircularProgress />}
         {rows && (
