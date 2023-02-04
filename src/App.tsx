@@ -11,18 +11,33 @@ function App() {
     view.container = mapRef.current!;
   }, []);
 
-  const handleProcessRowUpdate = async (row: any) => {
-    await featureLayer.applyEdits({
+  const handleProcessRowUpdate = async (newRow: any, oldRow: any) => {
+    const updatedAttribute = Object.keys(newRow).find(
+      (key) => newRow[key] !== oldRow[key]
+    )!;
+    const results = await featureLayer.applyEdits({
       updateFeatures: [
         new Graphic({
-          attributes: row,
+          attributes: {
+            [featureLayer.objectIdField]: newRow[featureLayer.objectIdField],
+            [updatedAttribute]: newRow[updatedAttribute],
+          },
         }),
       ],
     });
+    if (results.updateFeatureResults.some((res) => res.error)) {
+      const firstError = results.updateFeatureResults.find((res) => res.error)
+        ?.error!;
+      window.alert(
+        `Error updating feature: ${firstError.name}: ${firstError.message}`
+      );
+      return oldRow;
+    }
+    return newRow;
   };
 
   const handleRowProcessError = (error: any) => {
-    console.error(error);
+    window.alert(`Error updating feature: ${error.message}`);
   };
 
   return (
@@ -41,11 +56,9 @@ function App() {
               field: "ObjectId",
             },
             {
-              field: "Park",
-            },
-            {
-              field: "F1904",
+              field: "Case_Number",
               editable: true,
+              width: 150,
             },
           ]}
           processRowUpdate={handleProcessRowUpdate}
